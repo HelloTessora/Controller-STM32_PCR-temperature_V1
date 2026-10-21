@@ -60,6 +60,12 @@ char uart_buffer[128];
 volatile uint32_t adc_debug = 0;
 volatile float temperature_debug = 0.0f;
 
+volatile uint32_t adc_ntc2 = 0;
+volatile uint32_t adc_ntc3 = 0;
+
+volatile float temperature_ntc2 = 0.0f;
+volatile float temperature_ntc3 = 0.0f;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -73,15 +79,32 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-float Read_NTC_Temperature(void)
+float Read_NTC_Temperature(
+    uint32_t channel,
+    volatile uint32_t *adc_result)
 {
+    ADC_ChannelConfTypeDef sConfig = {0};
+
     uint32_t adc_value;
     float voltage;
     float resistance;
     float temperature_kelvin;
     float temperature_celsius;
 
-    HAL_ADC_Start(&hadc1);
+    /* Pilih kanal ADC yang akan dibaca */
+    sConfig.Channel = channel;
+    sConfig.Rank = 1;
+    sConfig.SamplingTime = ADC_SAMPLETIME_84CYCLES;
+
+    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+    {
+        return -999.0f;
+    }
+
+    if (HAL_ADC_Start(&hadc1) != HAL_OK)
+    {
+        return -999.0f;
+    }
 
     if (HAL_ADC_PollForConversion(&hadc1, 100) != HAL_OK)
     {
@@ -90,28 +113,33 @@ float Read_NTC_Temperature(void)
     }
 
     adc_value = HAL_ADC_GetValue(&hadc1);
-    adc_debug = adc_value;
     HAL_ADC_Stop(&hadc1);
 
-    // Hindari pembagian dengan nol
+    *adc_result = adc_value;
+
+    /* Periksa batas pembacaan ADC */
     if (adc_value == 0 || adc_value >= 4095)
     {
         return -999.0f;
     }
 
-    // Konversi nilai ADC menjadi tegangan
+    /* Konversi ADC menjadi tegangan */
     voltage = ((float)adc_value / ADC_MAX) * VREF;
 
-    // NTC terhubung ke 3.3V, resistor tetap ke GND
+    /* NTC ke 3.3 V, resistor tetap ke GND */
     resistance = R_FIXED * (VREF / voltage - 1.0f);
 
-    // Persamaan Beta untuk NTC
+    if (resistance <= 0.0f)
+    {
+        return -999.0f;
+    }
+
+    /* Persamaan Beta NTC */
     temperature_kelvin =
         1.0f / ((1.0f / T0) +
         (logf(resistance / R0) / BETA));
 
     temperature_celsius = temperature_kelvin - 273.15f;
-    temperature_debug = temperature_celsius;
 
     return temperature_celsius;
 }
@@ -160,37 +188,37 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	    float temperature = Read_NTC_Temperature();
+temperature_debug =
+    Read_NTC_Temperature(ADC_CHANNEL_0, &adc_debug);
 
-    if (temperature > -100.0f)
-    {
-        snprintf(
-            uart_buffer,
-            sizeof(uart_buffer),
-            "ADC: %lu | Temperature: %.2f C\r\n",
-            (unsigned long)adc_debug,
-            temperature
-        );
-    }
-    else
-    {
-        snprintf(
-            uart_buffer,
-            sizeof(uart_buffer),
-            "ADC Error: Check NTC wiring\r\n"
-        );
-    }
+temperature_ntc2 =
+    Read_NTC_Temperature(ADC_CHANNEL_1, &adc_ntc2);
 
-    HAL_UART_Transmit(
-        &huart1,
-        (uint8_t *)uart_buffer,
-        strlen(uart_buffer),
-        HAL_MAX_DELAY
-    );
+temperature_ntc3 =
+    Read_NTC_Temperature(ADC_CHANNEL_2, &adc_ntc3);
 
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+snprintf(
+    uart_buffer,
+    sizeof(uart_buffer),
+    "T1: %.2f C ADC:%lu | T2: %.2f C ADC:%lu | T3: %.2f C ADC:%lu\r\n",
+    (temperature_debug > -100.0f) ? temperature_debug : -999.0f,
+    (unsigned long)adc_debug,
+    (temperature_ntc2 > -100.0f) ? temperature_ntc2 : -999.0f,
+    (unsigned long)adc_ntc2,
+    (temperature_ntc3 > -100.0f) ? temperature_ntc3 : -999.0f,
+    (unsigned long)adc_ntc3
+);
 
-    HAL_Delay(1000);
+HAL_UART_Transmit(
+    &huart1,
+    (uint8_t *)uart_buffer,
+    strlen(uart_buffer),
+    HAL_MAX_DELAY
+);
+
+HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+
+HAL_Delay(1000);
   }
  
   /* USER CODE END 3 */
