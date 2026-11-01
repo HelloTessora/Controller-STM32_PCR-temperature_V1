@@ -19,14 +19,13 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
-#include "usbd_cdc_if.h"
-#include "usbd_def.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include "usbd_cdc_if.h"
 
 /* USER CODE END Includes */
 
@@ -56,7 +55,7 @@ UART_HandleTypeDef huart1;
 #define R_FIXED     10000.0f
 #define R0          10000.0f
 #define T0          298.15f
-#define BETA        3950.0f
+#define BETA        3976.0f
 
 char uart_buffer[256];
 volatile uint8_t usb_status = 255;
@@ -69,6 +68,7 @@ volatile uint32_t adc_ntc5 = 0;
 volatile uint32_t adc_ntc6 = 0;
 volatile uint32_t adc_ntc7 = 0;
 volatile uint32_t adc_ntc8 = 0;
+volatile uint32_t adc_ntc9 = 0;
 
 volatile float temperature_ntc1 = 0.0f;
 volatile float temperature_ntc2 = 0.0f;
@@ -78,6 +78,7 @@ volatile float temperature_ntc5 = 0.0f;
 volatile float temperature_ntc6 = 0.0f;
 volatile float temperature_ntc7 = 0.0f;
 volatile float temperature_ntc8 = 0.0f;
+volatile float temperature_ntc9 = 0.0f;
 
 /* USER CODE END PV */
 
@@ -220,24 +221,29 @@ int main(void)
     Read_NTC_Temperature(ADC_CHANNEL_6, &adc_ntc7);
   temperature_ntc8  = 
     Read_NTC_Temperature(ADC_CHANNEL_7, &adc_ntc8);
+  temperature_ntc9 =
+    Read_NTC_Temperature(ADC_CHANNEL_8, &adc_ntc9);
 
 /* Format data untuk Serial Monitor */
-  snprintf(
-      uart_buffer,
-      sizeof(uart_buffer),
-      "T1:%.2f ADC:%lu | T2:%.2f ADC:%lu | "
-      "T3:%.2f ADC:%lu | T4:%.2f ADC:%lu\r\n"
-      "T5:%.2f ADC:%lu | T6:%.2f ADC:%lu | "
-      "T7:%.2f ADC:%lu | T8:%.2f ADC:%lu\r\n",
-      temperature_ntc1, (unsigned long)adc_ntc1,
-      temperature_ntc2, (unsigned long)adc_ntc2,
-      temperature_ntc3, (unsigned long)adc_ntc3,
-      temperature_ntc4, (unsigned long)adc_ntc4,
-      temperature_ntc5, (unsigned long)adc_ntc5,
-      temperature_ntc6, (unsigned long)adc_ntc6,
-      temperature_ntc7, (unsigned long)adc_ntc7,
-      temperature_ntc8, (unsigned long)adc_ntc8
-  );
+snprintf(
+    uart_buffer,
+    sizeof(uart_buffer),
+    "T1:%.2f ADC:%lu | T2:%.2f ADC:%lu | "
+    "T3:%.2f ADC:%lu | T4:%.2f ADC:%lu\r\n"
+    "T5:%.2f ADC:%lu | T6:%.2f ADC:%lu | "
+    "T7:%.2f ADC:%lu | T8:%.2f ADC:%lu\r\n"
+    "T9:%.2f ADC:%lu\r\n",
+
+    temperature_ntc1, (unsigned long)adc_ntc1,
+    temperature_ntc2, (unsigned long)adc_ntc2,
+    temperature_ntc3, (unsigned long)adc_ntc3,
+    temperature_ntc4, (unsigned long)adc_ntc4,
+    temperature_ntc5, (unsigned long)adc_ntc5,
+    temperature_ntc6, (unsigned long)adc_ntc6,
+    temperature_ntc7, (unsigned long)adc_ntc7,
+    temperature_ntc8, (unsigned long)adc_ntc8,
+    temperature_ntc9, (unsigned long)adc_ntc9
+);
 
   HAL_UART_Transmit(
       &huart1,
@@ -326,13 +332,13 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 9;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -345,6 +351,78 @@ static void MX_ADC1_Init(void)
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = 3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = 4;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = 5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Rank = 6;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Rank = 7;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_7;
+  sConfig.Rank = 8;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Rank = 9;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -404,6 +482,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
@@ -426,6 +505,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* Konfigurasi PB0 untuk NTC ke-9 (Ambient) */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE END MX_GPIO_Init_2 */
 }

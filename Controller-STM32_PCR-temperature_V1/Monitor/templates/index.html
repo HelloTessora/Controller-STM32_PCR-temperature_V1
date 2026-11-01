@@ -1,0 +1,291 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>NTC Monitoring System</title>
+
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- HEADER -->
+    <header class="header">
+        <div>
+            <h1>NTC Monitoring System</h1>
+            <p class="subtitle">PCR Temperature Monitoring</p>
+        </div>
+
+        <div class="status" id="connection-status">
+            Connecting...
+        </div>
+    </header>
+
+
+    <!-- TEMPERATURE OVERVIEW -->
+    <h2 class="section-title">Temperature Overview</h2>
+
+    <div class="sensor-grid" id="sensor-grid">
+
+        {% for i in range(1, 9) %}
+        <div class="sensor-card">
+
+            <div class="sensor-name">Sensor T{{ i }}</div>
+
+            <div class="sensor-value">
+                <span id="T{{ i }}">--.--</span>
+                <span class="sensor-unit">°C</span>
+            </div>
+
+            <div class="sensor-label">Live Temperature</div>
+
+        </div>
+        {% endfor %}
+
+    </div>
+
+
+    <!-- TEMPERATURE HISTORY -->
+    <div class="chart-section">
+
+        <h2 class="section-title">Temperature History</h2>
+
+        <div class="chart-card">
+
+            <div class="chart-header">
+                <div>
+                    <h3>NTC Temperature Trend</h3>
+                    <p>Real-time temperature monitoring</p>
+                </div>
+
+                <span class="chart-unit">°C</span>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="temperatureChart"></canvas>
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- DATA ACQUISITION CONTROL -->
+    <section class="acquisition-section">
+
+        <h2 class="section-title">Data Acquisition Control</h2>
+
+        <div class="acquisition-card">
+
+            <div class="acquisition-grid">
+
+                <!-- RECORDING SETTINGS -->
+                <div>
+
+                    <!-- RECORDING MODE -->
+                    <div class="control-group">
+
+                        <label>Recording Mode</label>
+
+                        <div class="mode-options">
+
+                            <label class="mode-option">
+                                <input
+                                    type="radio"
+                                    name="mode"
+                                    value="timed"
+                                    checked
+                                >
+
+                                <strong>Timed</strong>
+                                <small>Automatic stop</small>
+                            </label>
+
+                            <label class="mode-option">
+                                <input
+                                    type="radio"
+                                    name="mode"
+                                    value="manual"
+                                >
+
+                                <strong>Manual</strong>
+                                <small>Stop manually</small>
+                            </label>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- RECORDING DURATION -->
+                    <div class="control-group" id="duration-group">
+
+                        <label>Recording Duration</label>
+
+                        <div class="duration-inputs">
+
+                            <div class="duration-field">
+
+                                <input
+                                    type="number"
+                                    id="duration-hours"
+                                    min="0"
+                                    max="24"
+                                    value="0"
+                                    placeholder="00"
+                                >
+
+                                <small>Hours</small>
+
+                            </div>
+
+
+                            <span class="duration-separator">:</span>
+
+
+                            <div class="duration-field">
+
+                                <input
+                                    type="number"
+                                    id="duration-minutes"
+                                    min="0"
+                                    max="59"
+                                    value="1"
+                                    placeholder="00"
+                                >
+
+                                <small>Minutes</small>
+
+                            </div>
+
+
+                            <span class="duration-separator">:</span>
+
+
+                            <div class="duration-field">
+
+                                <input
+                                    type="number"
+                                    id="duration-seconds"
+                                    min="0"
+                                    max="59"
+                                    value="0"
+                                    placeholder="00"
+                                >
+
+                                <small>Seconds</small>
+
+                            </div>
+
+                        </div>
+
+                        <small>
+                            Format: HH : MM : SS | Maximum duration: 24 hours
+                        </small>
+
+                    </div>
+
+
+                    <!-- SAMPLING INTERVAL -->
+                    <div class="control-group">
+
+                        <label for="interval">
+                            Sampling Interval
+                        </label>
+
+                        <select id="interval">
+
+                            <option value="0.5">0.5 second</option>
+                            <option value="1" selected>1 second</option>
+                            <option value="2">2 seconds</option>
+                            <option value="5">5 seconds</option>
+                            <option value="10">10 seconds</option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                <!-- RECORDING STATUS -->
+                <div>
+
+                    <!-- COUNTDOWN -->
+                    <div class="timer-display">
+
+                        <small>TIME REMAINING</small>
+
+                        <h2 id="countdown">
+                            00:00:00
+                        </h2>
+
+                    </div>
+
+
+                    <!-- STATUS -->
+                    <div class="recording-status">
+                        Status:
+                        <strong id="recording-status">Idle</strong>
+                    </div>
+
+                    <div class="recording-status">
+                        Recorded Rows:
+                        <strong id="recorded-rows">0</strong>
+                    </div>
+
+
+                    <!-- START / STOP BUTTONS -->
+                    <div class="acquisition-buttons">
+
+                        <button
+                            class="start-button"
+                            id="start-button"
+                            onclick="startRecording()"
+                        >
+                            Start Recording
+                        </button>
+
+                        <button
+                            class="stop-button"
+                            id="stop-button"
+                            onclick="stopRecording()"
+                            disabled
+                        >
+                            Stop
+                        </button>
+
+                    </div>
+
+
+                    <!-- RECORDING MESSAGE -->
+                    <p
+                        id="recording-message"
+                        style="margin-top:15px;font-size:13px;color:#8492a6;"
+                    ></p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<!-- JAVASCRIPT -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+</body>
+</html>
