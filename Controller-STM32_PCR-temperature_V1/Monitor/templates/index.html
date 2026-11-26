@@ -28,12 +28,83 @@
         </div>
     </header>
 
+    <!-- DEVICE CONNECTION -->
+    <section class="device-section">
+
+        <h2 class="section-title">Device Connection</h2>
+
+        <div class="device-card">
+
+            <div class="device-header">
+                <div>
+                    <h3>STM32 Communication</h3>
+                    <p>USB Serial Device Configuration</p>
+                </div>
+
+                <span class="device-status disconnected" id="device-status">
+                    Disconnected
+                </span>
+            </div>
+
+            <div class="device-controls">
+
+                <div class="device-port-group">
+                    <label for="serial-port">Serial Port</label>
+
+                    <select id="serial-port">
+                        <option value="">Scanning available ports...</option>
+                    </select>
+                </div>
+
+                <button
+                    class="refresh-port-button"
+                    id="refresh-port-button"
+                    onclick="refreshSerialPorts()"
+                >
+                    Refresh Ports
+                </button>
+
+            </div>
+
+            <div class="device-footer">
+
+                <p id="device-message">
+                    Select the STM32 serial port to establish communication.
+                </p>
+
+                <div class="device-buttons">
+
+                    <button
+                        class="connect-button"
+                        id="connect-button"
+                        onclick="connectSTM32()"
+                    >
+                        Connect
+                    </button>
+
+                    <button
+                        class="disconnect-button"
+                        id="disconnect-button"
+                        onclick="disconnectSTM32()"
+                        disabled
+                    >
+                        Disconnect
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
 
     <!-- TEMPERATURE OVERVIEW -->
     <h2 class="section-title">Temperature Overview</h2>
 
     <div class="sensor-grid" id="sensor-grid">
 
+        <!-- NTC SENSOR 1-8 -->
         {% for i in range(1, 9) %}
         <div class="sensor-card">
 
@@ -48,6 +119,21 @@
 
         </div>
         {% endfor %}
+
+
+        <!-- NTC SENSOR 9 - AMBIENT -->
+        <div class="sensor-card ambient-card">
+
+            <div class="sensor-name">Sensor T9</div>
+
+            <div class="sensor-value">
+                <span id="T9">--.--</span>
+                <span class="sensor-unit">°C</span>
+            </div>
+
+            <div class="sensor-label">Ambient Temperature</div>
+
+        </div>
 
     </div>
 
@@ -146,9 +232,7 @@
 
                             </div>
 
-
                             <span class="duration-separator">:</span>
-
 
                             <div class="duration-field">
 
@@ -165,9 +249,7 @@
 
                             </div>
 
-
                             <span class="duration-separator">:</span>
-
 
                             <div class="duration-field">
 
@@ -278,6 +360,57 @@
         </div>
 
     </section>
+
+
+<!-- DATA STORAGE LOCATION -->
+<section class="storage-section">
+    <h2 class="section-title">Data Storage</h2>
+
+    <div class="storage-card">
+
+        <div class="storage-header">
+            <div class="storage-info">
+                <div class="storage-icon">
+                    📁
+                </div>
+
+                <div class="storage-details">
+                    <h3>Temperature Data</h3>
+                    <p>CSV Recording Directory</p>
+                </div>
+            </div>
+
+            <span class="storage-status">
+                <span class="status-dot"></span>
+                Available
+            </span>
+        </div>
+
+        <div class="storage-path-container">
+            <span class="storage-label">STORAGE LOCATION</span>
+
+            <p id="storage-path">
+                Loading storage location...
+            </p>
+        </div>
+
+        <div class="storage-footer">
+            <div class="storage-description">
+                All recorded temperature data are saved here.
+            </div>
+
+            <button
+                class="open-folder-button"
+                id="open-folder-button"
+                onclick="openDataFolder()"
+            >
+                <span>📂</span>
+                Open Data Folder
+            </button>
+        </div>
+
+    </div>
+</section>
 
 </div>
 

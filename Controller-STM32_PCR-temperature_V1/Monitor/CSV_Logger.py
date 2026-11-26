@@ -16,12 +16,21 @@ BAUDRATE = 115200
 # CSV CONFIGURATION
 # ==========================================
 
-DATA_FOLDER = "Data"
+# Mengambil lokasi folder tempat CSV_Logger.py berada
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+# Menyimpan CSV ke folder Monitor/Data
+DATA_FOLDER = os.path.join(BASE_DIR, "Data")
+
+# Membuat folder Data jika belum tersedia
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
+# Membuat nama file berdasarkan waktu logging
 filename = datetime.now().strftime("NTC_Test_%Y%m%d_%H%M%S.csv")
 filepath = os.path.join(DATA_FOLDER, filename)
+
+print("Lokasi CSV:", os.path.abspath(filepath))
+
 
 # ==========================================
 # DATA PARSER
@@ -36,8 +45,9 @@ def parse_serial_line(line):
     for sensor, temperature, adc in matches:
         sensor = int(sensor)
 
-        result[f"T{sensor}"] = float(temperature)
-        result[f"ADC{sensor}"] = int(adc)
+        if 1 <= sensor <= 9:
+            result[f"T{sensor}"] = float(temperature)
+            result[f"ADC{sensor}"] = int(adc)
 
     return result
 
@@ -55,23 +65,29 @@ print("Starting CSV Logger...")
 print("Press CTRL+C to stop logging.")
 print("===================================")
 
+ser = None
+
 try:
+    # Membuka koneksi serial
     ser = serial.Serial(PORT, BAUDRATE, timeout=2)
 
-    # Header CSV
+    # Membuat header CSV
     headers = ["Timestamp"]
 
-    for i in range(1, 9):
+    for i in range(1, 10):
         headers.append(f"T{i}_C")
 
-    for i in range(1, 9):
+    for i in range(1, 10):
         headers.append(f"ADC{i}")
 
     sensor_data = {}
 
+    # Membuka file CSV
     with open(filepath, "w", newline="", encoding="utf-8") as file:
 
         writer = csv.writer(file)
+
+        # Menulis header
         writer.writerow(headers)
         file.flush()
 
@@ -79,6 +95,7 @@ try:
 
         while True:
 
+            # Membaca data serial dari STM32
             line = ser.readline().decode(
                 "utf-8", errors="replace"
             ).strip()
@@ -88,30 +105,36 @@ try:
 
             print(line)
 
+            # Mengambil data suhu dan ADC
             parsed = parse_serial_line(line)
             sensor_data.update(parsed)
 
-            # Simpan jika seluruh 8 sensor sudah terbaca
-            if all(f"T{i}" in sensor_data for i in range(1, 9)) and \
-               all(f"ADC{i}" in sensor_data for i in range(1, 9)):
+            # Memastikan seluruh 9 sensor sudah terbaca
+            if all(f"T{i}" in sensor_data for i in range(1, 10)) and \
+               all(f"ADC{i}" in sensor_data for i in range(1, 10)):
 
+                # Membuat timestamp
                 timestamp = datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
 
                 row = [timestamp]
 
-                for i in range(1, 9):
+                # Menambahkan data temperatur T1-T9
+                for i in range(1, 10):
                     row.append(sensor_data[f"T{i}"])
 
-                for i in range(1, 9):
+                # Menambahkan data ADC1-ADC9
+                for i in range(1, 10):
                     row.append(sensor_data[f"ADC{i}"])
 
+                # Menyimpan satu baris data ke CSV
                 writer.writerow(row)
                 file.flush()
 
-                print(">> Data saved to CSV\n")
+                print(">> Data 9 sensors saved to CSV\n")
 
+                # Mengosongkan data untuk siklus berikutnya
                 sensor_data.clear()
 
 except KeyboardInterrupt:
@@ -121,7 +144,7 @@ except serial.SerialException as error:
     print(f"\nSerial Error: {error}")
 
 finally:
-    if "ser" in locals() and ser.is_open:
+    if ser is not None and ser.is_open:
         ser.close()
 
     print("Serial connection closed.")
