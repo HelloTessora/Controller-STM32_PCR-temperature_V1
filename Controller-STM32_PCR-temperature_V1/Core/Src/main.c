@@ -80,6 +80,16 @@ volatile float temperature_ntc7 = 0.0f;
 volatile float temperature_ntc8 = 0.0f;
 volatile float temperature_ntc9 = 0.0f;
 
+
+extern volatile uint8_t cdc_recording_command;
+
+volatile uint8_t recording_active = 0;
+
+uint32_t last_sample_tick = 0;
+uint32_t led_tick = 0;
+
+uint8_t led_phase = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -158,6 +168,108 @@ float Read_NTC_Temperature(
     return temperature_celsius;
 }
 
+
+void Process_USB_Command(void)
+{
+    uint8_t command = cdc_recording_command;
+
+    if (command == 0)
+    {
+        return;
+    }
+
+    cdc_recording_command = 0;
+
+    if (command == 1)
+    {
+        recording_active = 1;
+    }
+    else if (command == 2)
+    {
+        recording_active = 0;
+    }
+}
+
+void Update_Record_LED(void)
+{
+    uint32_t current_tick = HAL_GetTick();
+
+    /* LED menyala terus saat recording */
+    if (recording_active)
+    {
+        HAL_GPIO_WritePin(
+            LED_record_GPIO_Port,
+            LED_record_Pin,
+            GPIO_PIN_SET
+        );
+
+        led_phase = 0;
+        led_tick = current_tick;
+
+        return;
+    }
+
+    /* Double blink saat standby */
+    switch (led_phase)
+    {
+        case 0:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_SET
+            );
+
+            if (current_tick - led_tick >= 150)
+            {
+                led_phase = 1;
+                led_tick = current_tick;
+            }
+            break;
+
+        case 1:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_RESET
+            );
+
+            if (current_tick - led_tick >= 150)
+            {
+                led_phase = 2;
+                led_tick = current_tick;
+            }
+            break;
+
+        case 2:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_SET
+            );
+
+            if (current_tick - led_tick >= 150)
+            {
+                led_phase = 3;
+                led_tick = current_tick;
+            }
+            break;
+
+        case 3:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_RESET
+            );
+
+            if (current_tick - led_tick >= 1550)
+            {
+                led_phase = 0;
+                led_tick = current_tick;
+            }
+            break;
+    }
+}
+
 /* USER CODE END 0 */
 
 /**
@@ -204,61 +316,65 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
       
-/* Baca 8 sensor secara bergantian */
-  temperature_ntc1 =
-    Read_NTC_Temperature(ADC_CHANNEL_0, &adc_ntc1);
-  temperature_ntc2  = 
-    Read_NTC_Temperature(ADC_CHANNEL_1, &adc_ntc2);
-  temperature_ntc3  = 
-    Read_NTC_Temperature(ADC_CHANNEL_2, &adc_ntc3);
-  temperature_ntc4  = 
-    Read_NTC_Temperature(ADC_CHANNEL_3, &adc_ntc4);
-  temperature_ntc5  = 
-    Read_NTC_Temperature(ADC_CHANNEL_4, &adc_ntc5);
-  temperature_ntc6  = 
-    Read_NTC_Temperature(ADC_CHANNEL_5, &adc_ntc6);
-  temperature_ntc7  = 
-    Read_NTC_Temperature(ADC_CHANNEL_6, &adc_ntc7);
-  temperature_ntc8  = 
-    Read_NTC_Temperature(ADC_CHANNEL_7, &adc_ntc8);
-  temperature_ntc9 =
-    Read_NTC_Temperature(ADC_CHANNEL_8, &adc_ntc9);
+    /* Proses perintah USB CDC */
+    Process_USB_Command();
 
-/* Format data untuk Serial Monitor */
-snprintf(
-    uart_buffer,
-    sizeof(uart_buffer),
-    "T1:%.2f ADC:%lu | T2:%.2f ADC:%lu | "
-    "T3:%.2f ADC:%lu | T4:%.2f ADC:%lu\r\n"
-    "T5:%.2f ADC:%lu | T6:%.2f ADC:%lu | "
-    "T7:%.2f ADC:%lu | T8:%.2f ADC:%lu\r\n"
-    "T9:%.2f ADC:%lu\r\n",
+    /* Update LED indikator PA8 */
+    Update_Record_LED();
 
-    temperature_ntc1, (unsigned long)adc_ntc1,
-    temperature_ntc2, (unsigned long)adc_ntc2,
-    temperature_ntc3, (unsigned long)adc_ntc3,
-    temperature_ntc4, (unsigned long)adc_ntc4,
-    temperature_ntc5, (unsigned long)adc_ntc5,
-    temperature_ntc6, (unsigned long)adc_ntc6,
-    temperature_ntc7, (unsigned long)adc_ntc7,
-    temperature_ntc8, (unsigned long)adc_ntc8,
-    temperature_ntc9, (unsigned long)adc_ntc9
-);
+    /* Sampling setiap 1 detik */
+    if (HAL_GetTick() - last_sample_tick >= 1000)
+    {
+        last_sample_tick = HAL_GetTick();
 
-  HAL_UART_Transmit(
-      &huart1,
-      (uint8_t *)uart_buffer,
-      (uint16_t)strlen(uart_buffer),
-      HAL_MAX_DELAY
-  );
+        /* Baca 9 sensor NTC */
+        temperature_ntc1 = Read_NTC_Temperature(ADC_CHANNEL_0, &adc_ntc1);
+        temperature_ntc2 = Read_NTC_Temperature(ADC_CHANNEL_1, &adc_ntc2);
+        temperature_ntc3 = Read_NTC_Temperature(ADC_CHANNEL_2, &adc_ntc3);
+        temperature_ntc4 = Read_NTC_Temperature(ADC_CHANNEL_3, &adc_ntc4);
+        temperature_ntc5 = Read_NTC_Temperature(ADC_CHANNEL_4, &adc_ntc5);
+        temperature_ntc6 = Read_NTC_Temperature(ADC_CHANNEL_5, &adc_ntc6);
+        temperature_ntc7 = Read_NTC_Temperature(ADC_CHANNEL_6, &adc_ntc7);
+        temperature_ntc8 = Read_NTC_Temperature(ADC_CHANNEL_7, &adc_ntc8);
+        temperature_ntc9 = Read_NTC_Temperature(ADC_CHANNEL_8, &adc_ntc9);
 
-usb_status = CDC_Transmit_FS(
-    (uint8_t *)uart_buffer,
-    (uint16_t)strlen(uart_buffer)
-);
+        /* Format data */
+        snprintf(
+            uart_buffer,
+            sizeof(uart_buffer),
+            "T1:%.2f ADC:%lu | T2:%.2f ADC:%lu | "
+            "T3:%.2f ADC:%lu | T4:%.2f ADC:%lu\r\n"
+            "T5:%.2f ADC:%lu | T6:%.2f ADC:%lu | "
+            "T7:%.2f ADC:%lu | T8:%.2f ADC:%lu\r\n"
+            "T9:%.2f ADC:%lu\r\n",
 
-  HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-  HAL_Delay(1000);
+            temperature_ntc1, (unsigned long)adc_ntc1,
+            temperature_ntc2, (unsigned long)adc_ntc2,
+            temperature_ntc3, (unsigned long)adc_ntc3,
+            temperature_ntc4, (unsigned long)adc_ntc4,
+            temperature_ntc5, (unsigned long)adc_ntc5,
+            temperature_ntc6, (unsigned long)adc_ntc6,
+            temperature_ntc7, (unsigned long)adc_ntc7,
+            temperature_ntc8, (unsigned long)adc_ntc8,
+            temperature_ntc9, (unsigned long)adc_ntc9
+        );
+
+        /* Kirim melalui USART1 */
+        HAL_UART_Transmit(
+            &huart1,
+            (uint8_t *)uart_buffer,
+            (uint16_t)strlen(uart_buffer),
+            HAL_MAX_DELAY
+        );
+
+        /* Kirim melalui USB CDC */
+        usb_status = CDC_Transmit_FS(
+            (uint8_t *)uart_buffer,
+            (uint16_t)strlen(uart_buffer)
+        );
+
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+    }
   }
  
   /* USER CODE END 3 */
@@ -487,12 +603,38 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(OUT_spare_GPIO_Port, OUT_spare_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LED_record_GPIO_Port, LED_record_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : IN_spare_Pin */
+  GPIO_InitStruct.Pin = IN_spare_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(IN_spare_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : OUT_spare_Pin */
+  GPIO_InitStruct.Pin = OUT_spare_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(OUT_spare_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LED_record_Pin */
+  GPIO_InitStruct.Pin = LED_record_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_record_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 

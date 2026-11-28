@@ -32,6 +32,8 @@ app = Flask(
     static_folder=os.path.join(BUNDLE_DIR, "static")
 )
 
+print("BUNDLE_DIR:", BUNDLE_DIR)
+print("TEMPLATE FILE:", os.path.join(BUNDLE_DIR, "templates", "index.html"))
 
 # ==========================================
 # SERIAL CONFIGURATION

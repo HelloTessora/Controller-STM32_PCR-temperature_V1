@@ -571,6 +571,7 @@ async function updateStorageLocation() {
 // OPEN DATA FOLDER
 // ==============================
 
+
 async function openDataFolder() {
 
     const openFolderButton = document.getElementById(
@@ -589,10 +590,19 @@ async function openDataFolder() {
             }
         );
 
-        const result = await response.json();
+        const responseText = await response.text();
 
-        if (!response.ok) {
+        let result;
 
+        try {
+            result = JSON.parse(responseText);
+        } catch {
+            throw new Error(
+                `Server returned invalid response. HTTP ${response.status}: ${responseText.slice(0, 200)}`
+            );
+        }
+
+        if (!response.ok || !result.success) {
             throw new Error(
                 result.message || "Failed to open data folder."
             );
@@ -615,10 +625,7 @@ async function openDataFolder() {
         openFolderButton.disabled = false;
 
         setTimeout(() => {
-
-            openFolderButton.textContent =
-                "Open Data Folder";
-
+            openFolderButton.textContent = "Open Data Folder";
         }, 2000);
     }
 }

@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
+#include <string.h>
 
 /* USER CODE BEGIN INCLUDE */
 
@@ -94,6 +95,10 @@ uint8_t UserRxBufferFS[APP_RX_DATA_SIZE];
 uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
 /* USER CODE BEGIN PRIVATE_VARIABLES */
+volatile uint8_t cdc_recording_command = 0;
+
+static char cdc_command_buffer[16];
+static uint8_t cdc_command_index = 0;
 
 /* USER CODE END PRIVATE_VARIABLES */
 
@@ -261,9 +266,49 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
-  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
-  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-  return (USBD_OK);
+  
+      for (uint32_t i = 0; i < *Len; i++)
+    {
+        char received_char = (char)Buf[i];
+
+        if (received_char == '\r')
+        {
+            continue;
+        }
+
+        if (received_char == '\n')
+        {
+            cdc_command_buffer[cdc_command_index] = '\0';
+
+            if (strcmp(cdc_command_buffer, "START") == 0)
+            {
+                cdc_recording_command = 1;
+            }
+            else if (strcmp(cdc_command_buffer, "STOP") == 0)
+            {
+                cdc_recording_command = 2;
+            }
+
+            cdc_command_index = 0;
+        }
+        else
+        {
+            if (cdc_command_index < sizeof(cdc_command_buffer) - 1)
+            {
+                cdc_command_buffer[cdc_command_index++] = received_char;
+            }
+            else
+            {
+                cdc_command_index = 0;
+            }
+        }
+    }
+
+    USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
+    USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+
+    return USBD_OK;
+  
   /* USER CODE END 6 */
 }
 
