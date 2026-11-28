@@ -1,0 +1,691 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Segoe UI", sans-serif;
+    background: #f5f7fa;
+    color: #263445;
+}
+
+.container {
+    max-width: 1400px;
+    margin: auto;
+    padding: 32px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.header h1 {
+    font-size: 28px;
+    font-weight: 650;
+}
+
+.subtitle {
+    color: #8492a6;
+    margin-top: 6px;
+}
+
+.status {
+    padding: 9px 16px;
+    border-radius: 20px;
+    background: #e6f7ee;
+    color: #16834a;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.section-title {
+    font-size: 17px;
+    margin-bottom: 16px;
+}
+
+/* ==============================
+   TEMPERATURE OVERVIEW
+============================== */
+
+.sensor-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 18px;
+}
+
+.sensor-card {
+    background: white;
+    border: 1px solid #e9edf2;
+    border-radius: 12px;
+    padding: 22px;
+    box-shadow: 0 3px 12px rgba(30, 50, 70, 0.03);
+}
+
+.sensor-name {
+    color: #8492a6;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.sensor-value {
+    font-size: 34px;
+    font-weight: 650;
+    margin-top: 14px;
+}
+
+.sensor-unit {
+    font-size: 15px;
+    color: #8492a6;
+    margin-left: 4px;
+}
+
+.sensor-label {
+    color: #a0aab8;
+    font-size: 12px;
+    margin-top: 8px;
+}
+
+/* AMBIENT TEMPERATURE - SENSOR T9 */
+
+.ambient-card {
+    background: #f0f7ff;
+    border-color: #cfe2ff;
+}
+
+.ambient-card .sensor-name {
+    color: #3976b9;
+}
+
+.ambient-card .sensor-label {
+    color: #6489b5;
+}
+
+
+/* ==============================
+   RESPONSIVE SENSOR GRID
+============================== */
+
+@media (max-width: 900px) {
+    .sensor-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 500px) {
+    .container {
+        padding: 18px;
+    }
+
+    .sensor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .header {
+        align-items: flex-start;
+        gap: 12px;
+        flex-direction: column;
+    }
+}
+
+
+/* ==============================
+   TEMPERATURE HISTORY
+============================== */
+
+.chart-section {
+    margin-top: 32px;
+}
+
+.chart-card {
+    background: white;
+    border: 1px solid #e9edf2;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 3px 12px rgba(30, 50, 70, 0.03);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.chart-header h3 {
+    font-size: 16px;
+    font-weight: 650;
+}
+
+.chart-header p {
+    color: #8492a6;
+    font-size: 13px;
+    margin-top: 5px;
+}
+
+.chart-unit {
+    color: #8492a6;
+    font-size: 13px;
+}
+
+.chart-container {
+    position: relative;
+    height: 360px;
+}
+
+@media (max-width: 600px) {
+    .chart-card {
+        padding: 16px;
+    }
+
+    .chart-container {
+        height: 280px;
+    }
+}
+
+
+/* ==============================
+   DATA ACQUISITION
+============================== */
+
+.acquisition-section {
+    margin-top: 32px;
+}
+
+.acquisition-card {
+    background: white;
+    border: 1px solid #e9edf2;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 3px 12px rgba(30, 50, 70, 0.03);
+}
+
+.acquisition-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.control-group {
+    margin-bottom: 20px;
+}
+
+.control-group label {
+    display: block;
+    font-size: 13px;
+    color: #65758b;
+    margin-bottom: 9px;
+    font-weight: 600;
+}
+
+.mode-options {
+    display: flex;
+    gap: 10px;
+}
+
+.mode-option {
+    flex: 1;
+    padding: 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    cursor: pointer;
+    background: white;
+}
+
+.mode-option:has(input:checked) {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.mode-option input {
+    margin-right: 6px;
+}
+
+.mode-option strong {
+    font-size: 14px;
+}
+
+.mode-option small {
+    display: block;
+    margin: 7px 0 0 22px;
+    color: #8492a6;
+}
+
+.acquisition-card select,
+.acquisition-card input[type="number"] {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #dce3eb;
+    border-radius: 8px;
+    background: white;
+    color: #263445;
+    font-size: 14px;
+}
+
+
+/* ==============================
+   TIMER AND RECORDING STATUS
+============================== */
+
+.timer-display {
+    background: #f5f7fa;
+    border-radius: 10px;
+    padding: 18px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.timer-display small {
+    color: #8492a6;
+    font-size: 12px;
+}
+
+.timer-display h2 {
+    font-size: 34px;
+    margin-top: 6px;
+    font-variant-numeric: tabular-nums;
+}
+
+.recording-status {
+    color: #8492a6;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+
+/* ==============================
+   ACQUISITION BUTTONS
+============================== */
+
+.acquisition-buttons {
+    display: flex;
+    gap: 12px;
+}
+
+.acquisition-buttons button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.start-button {
+    background: #2563eb;
+    color: white;
+}
+
+.stop-button {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.acquisition-buttons button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+
+/* ==============================
+   DURATION INPUT
+============================== */
+
+.duration-inputs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.duration-field {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.duration-field input {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-size: 22px;
+    font-weight: 600;
+    padding: 12px 5px;
+    border: 1px solid #dce2ea;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #263445;
+}
+
+.duration-field small {
+    margin-top: 6px;
+    color: #8492a6;
+    font-size: 12px;
+}
+
+.duration-separator {
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: -18px;
+    color: #8492a6;
+}
+
+
+/* ==============================
+   RESPONSIVE ACQUISITION
+============================== */
+
+@media (max-width: 700px) {
+    .acquisition-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+
+/* ==============================
+   DATA STORAGE
+============================== */
+
+.storage-section {
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+
+.storage-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+}
+
+.storage-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 22px;
+}
+
+.storage-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.storage-icon {
+    width: 54px;
+    height: 54px;
+    background: #eff6ff;
+    border-radius: 12px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 27px;
+}
+
+.storage-details h3 {
+    margin: 0 0 5px;
+    font-size: 17px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.storage-details p {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.storage-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 7px 12px;
+    background: #ecfdf5;
+    color: #047857;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    background: #10b981;
+    border-radius: 50%;
+}
+
+.storage-path-container {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.storage-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #9ca3af;
+    margin-bottom: 8px;
+}
+
+#storage-path {
+    font-size: 13px;
+    color: #374151;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+    margin: 0;
+}
+
+.storage-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.storage-description {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.open-folder-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 11px 18px;
+    background: #2563eb;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.open-folder-button:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.open-folder-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+@media (max-width: 600px) {
+    .storage-header,
+    .storage-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .open-folder-button {
+        width: 100%;
+    }
+}
+
+/* ==============================
+   DEVICE CONNECTION
+============================== */
+
+.device-section {
+    margin-top: 30px;
+    margin-bottom: 30px;
+}
+
+.device-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+}
+
+.device-header,
+.device-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.device-header {
+    margin-bottom: 22px;
+}
+
+.device-header h3 {
+    margin: 0 0 5px;
+    font-size: 17px;
+    color: #1f2937;
+}
+
+.device-header p {
+    margin: 0;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.device-status {
+    padding: 7px 13px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.device-status.connected {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.device-status.disconnected {
+    background: #fef2f2;
+    color: #dc2626;
+}
+
+.device-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.device-port-group {
+    flex: 1;
+}
+
+.device-port-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.device-port-group select {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #ffffff;
+    color: #374151;
+    font-size: 13px;
+}
+
+.refresh-port-button,
+.connect-button,
+.disconnect-button {
+    padding: 11px 17px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.refresh-port-button {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.connect-button {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.disconnect-button {
+    background: #ef4444;
+    color: #ffffff;
+}
+
+.device-footer {
+    margin-top: 20px;
+}
+
+.device-footer p {
+    margin: 0;
+    font-size: 12px;
+    color: #6b7280;
+}
+
+.device-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.device-card button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+    .device-controls,
+    .device-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .device-buttons {
+        width: 100%;
+    }
+
+    .device-buttons button {
+        flex: 1;
+    }
+
+    .refresh-port-button {
+        width: 100%;
+    }
+}

@@ -18,12 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include "usbd_cdc_if.h"
 
 /* USER CODE END Includes */
 
@@ -53,12 +55,40 @@ UART_HandleTypeDef huart1;
 #define R_FIXED     10000.0f
 #define R0          10000.0f
 #define T0          298.15f
-#define BETA        3950.0f
+#define BETA        3976.0f
 
-char uart_buffer[128];
+char uart_buffer[256];
+volatile uint8_t usb_status = 255;
 
-volatile uint32_t adc_debug = 0;
-volatile float temperature_debug = 0.0f;
+volatile uint32_t adc_ntc1 = 0;
+volatile uint32_t adc_ntc2 = 0;
+volatile uint32_t adc_ntc3 = 0;
+volatile uint32_t adc_ntc4 = 0;
+volatile uint32_t adc_ntc5 = 0;
+volatile uint32_t adc_ntc6 = 0;
+volatile uint32_t adc_ntc7 = 0;
+volatile uint32_t adc_ntc8 = 0;
+volatile uint32_t adc_ntc9 = 0;
+
+volatile float temperature_ntc1 = 0.0f;
+volatile float temperature_ntc2 = 0.0f;
+volatile float temperature_ntc3 = 0.0f;
+volatile float temperature_ntc4 = 0.0f;
+volatile float temperature_ntc5 = 0.0f;
+volatile float temperature_ntc6 = 0.0f;
+volatile float temperature_ntc7 = 0.0f;
+volatile float temperature_ntc8 = 0.0f;
+volatile float temperature_ntc9 = 0.0f;
+
+
+extern volatile uint8_t cdc_recording_command;
+
+volatile uint8_t recording_active = 0;
+
+uint32_t last_sample_tick = 0;
+uint32_t led_tick = 0;
+
+uint8_t led_phase = 0;
 
 /* USER CODE END PV */
 
@@ -73,15 +103,32 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-float Read_NTC_Temperature(void)
+float Read_NTC_Temperature(
+    uint32_t channel,
+    volatile uint32_t *adc_result)
 {
+    ADC_ChannelConfTypeDef sConfig = {0};
+
     uint32_t adc_value;
     float voltage;
     float resistance;
     float temperature_kelvin;
     float temperature_celsius;
 
-    HAL_ADC_Start(&hadc1);
+    /* Pilih kanal ADC yang akan dibaca */
+    sConfig.Channel = channel;
+    sConfig.Rank = 1;
+    sConfig.SamplingTime = ADC_SAMPLETIME_84CYCLES;
+
+    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+    {
+        return -999.0f;
+    }
+
+    if (HAL_ADC_Start(&hadc1) != HAL_OK)
+    {
+        return -999.0f;
+    }
 
     if (HAL_ADC_PollForConversion(&hadc1, 100) != HAL_OK)
     {
@@ -90,30 +137,137 @@ float Read_NTC_Temperature(void)
     }
 
     adc_value = HAL_ADC_GetValue(&hadc1);
-    adc_debug = adc_value;
     HAL_ADC_Stop(&hadc1);
 
-    // Hindari pembagian dengan nol
+    *adc_result = adc_value;
+
+    /* Periksa batas pembacaan ADC */
     if (adc_value == 0 || adc_value >= 4095)
     {
         return -999.0f;
     }
 
-    // Konversi nilai ADC menjadi tegangan
+    /* Konversi ADC menjadi tegangan */
     voltage = ((float)adc_value / ADC_MAX) * VREF;
 
-    // NTC terhubung ke 3.3V, resistor tetap ke GND
+    /* NTC ke 3.3 V, resistor tetap ke GND */
     resistance = R_FIXED * (VREF / voltage - 1.0f);
 
-    // Persamaan Beta untuk NTC
+    if (resistance <= 0.0f)
+    {
+        return -999.0f;
+    }
+
+    /* Persamaan Beta NTC */
     temperature_kelvin =
         1.0f / ((1.0f / T0) +
         (logf(resistance / R0) / BETA));
 
     temperature_celsius = temperature_kelvin - 273.15f;
-    temperature_debug = temperature_celsius;
 
     return temperature_celsius;
+}
+
+
+void Process_USB_Command(void)
+{
+    uint8_t command = cdc_recording_command;
+
+    if (command == 0)
+    {
+        return;
+    }
+
+    cdc_recording_command = 0;
+
+    if (command == 1)
+    {
+        recording_active = 1;
+    }
+    else if (command == 2)
+    {
+        recording_active = 0;
+    }
+}
+
+void Update_Record_LED(void)
+{
+    uint32_t current_tick = HAL_GetTick();
+
+    /* LED menyala terus saat recording */
+    if (recording_active)
+    {
+        HAL_GPIO_WritePin(
+            LED_record_GPIO_Port,
+            LED_record_Pin,
+            GPIO_PIN_SET
+        );
+
+        led_phase = 0;
+        led_tick = current_tick;
+
+        return;
+    }
+
+    /* Double blink saat standby */
+    switch (led_phase)
+    {
+        case 0:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_SET
+            );
+
+            if (current_tick - led_tick >= 150)
+            {
+                led_phase = 1;
+                led_tick = current_tick;
+            }
+            break;
+
+        case 1:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_RESET
+            );
+
+            if (current_tick - led_tick >= 150)
+            {
+                led_phase = 2;
+                led_tick = current_tick;
+            }
+            break;
+
+        case 2:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_SET
+            );
+
+            if (current_tick - led_tick >= 150)
+            {
+                led_phase = 3;
+                led_tick = current_tick;
+            }
+            break;
+
+        case 3:
+            HAL_GPIO_WritePin(
+                LED_record_GPIO_Port,
+                LED_record_Pin,
+                GPIO_PIN_RESET
+            );
+
+            if (current_tick - led_tick >= 1550)
+            {
+                led_phase = 0;
+                led_tick = current_tick;
+            }
+            break;
+    }
 }
 
 /* USER CODE END 0 */
@@ -149,6 +303,7 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC1_Init();
   MX_USART1_UART_Init();
+  MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -160,37 +315,66 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	    float temperature = Read_NTC_Temperature();
+      
+    /* Proses perintah USB CDC */
+    Process_USB_Command();
 
-    if (temperature > -100.0f)
+    /* Update LED indikator PA8 */
+    Update_Record_LED();
+
+    /* Sampling setiap 1 detik */
+    if (HAL_GetTick() - last_sample_tick >= 1000)
     {
+        last_sample_tick = HAL_GetTick();
+
+        /* Baca 9 sensor NTC */
+        temperature_ntc1 = Read_NTC_Temperature(ADC_CHANNEL_0, &adc_ntc1);
+        temperature_ntc2 = Read_NTC_Temperature(ADC_CHANNEL_1, &adc_ntc2);
+        temperature_ntc3 = Read_NTC_Temperature(ADC_CHANNEL_2, &adc_ntc3);
+        temperature_ntc4 = Read_NTC_Temperature(ADC_CHANNEL_3, &adc_ntc4);
+        temperature_ntc5 = Read_NTC_Temperature(ADC_CHANNEL_4, &adc_ntc5);
+        temperature_ntc6 = Read_NTC_Temperature(ADC_CHANNEL_5, &adc_ntc6);
+        temperature_ntc7 = Read_NTC_Temperature(ADC_CHANNEL_6, &adc_ntc7);
+        temperature_ntc8 = Read_NTC_Temperature(ADC_CHANNEL_7, &adc_ntc8);
+        temperature_ntc9 = Read_NTC_Temperature(ADC_CHANNEL_8, &adc_ntc9);
+
+        /* Format data */
         snprintf(
             uart_buffer,
             sizeof(uart_buffer),
-            "ADC: %lu | Temperature: %.2f C\r\n",
-            (unsigned long)adc_debug,
-            temperature
+            "T1:%.2f ADC:%lu | T2:%.2f ADC:%lu | "
+            "T3:%.2f ADC:%lu | T4:%.2f ADC:%lu\r\n"
+            "T5:%.2f ADC:%lu | T6:%.2f ADC:%lu | "
+            "T7:%.2f ADC:%lu | T8:%.2f ADC:%lu\r\n"
+            "T9:%.2f ADC:%lu\r\n",
+
+            temperature_ntc1, (unsigned long)adc_ntc1,
+            temperature_ntc2, (unsigned long)adc_ntc2,
+            temperature_ntc3, (unsigned long)adc_ntc3,
+            temperature_ntc4, (unsigned long)adc_ntc4,
+            temperature_ntc5, (unsigned long)adc_ntc5,
+            temperature_ntc6, (unsigned long)adc_ntc6,
+            temperature_ntc7, (unsigned long)adc_ntc7,
+            temperature_ntc8, (unsigned long)adc_ntc8,
+            temperature_ntc9, (unsigned long)adc_ntc9
         );
-    }
-    else
-    {
-        snprintf(
-            uart_buffer,
-            sizeof(uart_buffer),
-            "ADC Error: Check NTC wiring\r\n"
+
+        /* Kirim melalui USART1 */
+        HAL_UART_Transmit(
+            &huart1,
+            (uint8_t *)uart_buffer,
+            (uint16_t)strlen(uart_buffer),
+            HAL_MAX_DELAY
         );
+
+        /* Kirim melalui USB CDC */
+        usb_status = CDC_Transmit_FS(
+            (uint8_t *)uart_buffer,
+            (uint16_t)strlen(uart_buffer)
+        );
+
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
     }
-
-    HAL_UART_Transmit(
-        &huart1,
-        (uint8_t *)uart_buffer,
-        strlen(uart_buffer),
-        HAL_MAX_DELAY
-    );
-
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
-
-    HAL_Delay(1000);
   }
  
   /* USER CODE END 3 */
@@ -213,15 +397,14 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 8;
-  RCC_OscInitStruct.PLL.PLLN = 84;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 15;
+  RCC_OscInitStruct.PLL.PLLN = 144;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+  RCC_OscInitStruct.PLL.PLLQ = 5;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -236,7 +419,7 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -263,15 +446,15 @@ static void MX_ADC1_Init(void)
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
   */
   hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+  hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV2;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 9;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
@@ -284,6 +467,78 @@ static void MX_ADC1_Init(void)
   sConfig.Channel = ADC_CHANNEL_0;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_15CYCLES;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Rank = 2;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = 3;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_3;
+  sConfig.Rank = 4;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_4;
+  sConfig.Rank = 5;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_5;
+  sConfig.Rank = 6;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_6;
+  sConfig.Rank = 7;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_7;
+  sConfig.Rank = 8;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
+  */
+  sConfig.Channel = ADC_CHANNEL_8;
+  sConfig.Rank = 9;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -343,9 +598,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(OUT_spare_GPIO_Port, OUT_spare_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LED_record_GPIO_Port, LED_record_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -354,7 +616,43 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : IN_spare_Pin */
+  GPIO_InitStruct.Pin = IN_spare_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(IN_spare_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : OUT_spare_Pin */
+  GPIO_InitStruct.Pin = OUT_spare_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(OUT_spare_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LED_record_Pin */
+  GPIO_InitStruct.Pin = LED_record_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LED_record_GPIO_Port, &GPIO_InitStruct);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
+
+  /* Konfigurasi pin ADC untuk 8 NTC */
+  GPIO_InitStruct.Pin = GPIO_PIN_0 | GPIO_PIN_1 |
+                        GPIO_PIN_2 | GPIO_PIN_3 |
+                        GPIO_PIN_4 | GPIO_PIN_5 |
+                        GPIO_PIN_6 | GPIO_PIN_7;
+
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /* Konfigurasi PB0 untuk NTC ke-9 (Ambient) */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
